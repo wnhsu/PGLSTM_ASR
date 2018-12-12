@@ -1,0 +1,203 @@
+load=ndlMacroDefine
+run=ndlCreateNetwork_LSTMP_c1024_p256_x3
+
+ndlMacroDefine=[
+    # Macro definitions
+    MeanVarNorm(x)=[
+	xMean = Mean(x);
+    	xStdDev = InvStdDev(x)
+    	xNorm=PerDimMeanVarNormalization(x,xMean,xStdDev)
+    ]
+ 
+    LogPrior(labels)
+    {
+	    Prior=Mean(labels)
+	    LogPrior=Log(Prior)
+    }   
+
+
+    LSTMPComponent(inputDim, outputDim, cellDim, inputx, cellDimX2, cellDimX3, cellDimX4)
+    {
+        wx = Parameter(cellDimX4, inputDim, init=uniform, initValueScale=1);
+        b = Parameter(cellDimX4, init=fixedValue, value=0.0);
+        wh = Parameter(cellDimX4, outputDim, init=uniform, initValueScale=1);
+
+        Wci = Parameter(cellDim, init=uniform, initValueScale=1);
+        Wcf = Parameter(cellDim, init=uniform, initValueScale=1);
+        Wco = Parameter(cellDim, init=uniform, initValueScale=1);
+
+        dh = PastValue(outputDim, output, timeStep=1);
+        dc = PastValue(cellDim, ct, timeStep=1);
+
+        wxx = Times(wx, inputx);
+        wxxpb = Plus(wxx, b);
+        
+        whh = Times(wh, dh);
+
+		wxxpbpwhh = Plus(wxxpb,whh)	
+				
+		G1 = RowSlice(0, cellDim, wxxpbpwhh)		
+		G2 = RowSlice(cellDim, cellDim, wxxpbpwhh)
+		G3 = RowSlice(cellDimX2, cellDim, wxxpbpwhh);
+		G4 = RowSlice(cellDimX3, cellDim, wxxpbpwhh);
+		
+        Wcidc = DiagTimes(Wci, dc);
+        it = Sigmoid (Plus ( G1, Wcidc));
+
+        bit = ElementTimes(it, Tanh( G2 ));
+
+        Wcfdc = DiagTimes(Wcf, dc);
+        ft = Sigmoid( Plus (G3, Wcfdc));
+
+        bft = ElementTimes(ft, dc);
+
+        ct = Plus(bft, bit);
+
+        Wcoct = DiagTimes(Wco, ct);
+        ot = Sigmoid( Plus( G4, Wcoct));
+
+        mt = ElementTimes(ot, Tanh(ct));
+
+        Wmr = Parameter(outputDim, cellDim, init=uniform, initValueScale=1);
+        output = Times(Wmr, mt); 
+    }
+    
+    VLSTMP_LayerBelow_opt(inputDim, outputDim, cellDim, inputx, dc, dh, cellDimX2, cellDimX3, cellDimX4)
+    {
+        wx = Parameter(cellDimX4, inputDim, init=uniform, initValueScale=1);
+        b = Parameter(cellDimX4, init=fixedValue, value=0.0);
+        wh = Parameter(cellDimX4, outputDim, init=uniform, initValueScale=1);
+
+        Wci = Parameter(cellDim, init=uniform, initValueScale=1);
+        Wcf = Parameter(cellDim, init=uniform, initValueScale=1);
+        Wco = Parameter(cellDim, init=uniform, initValueScale=1);
+
+
+        wxx = Times(wx, inputx);
+        wxxpb = Plus(wxx, b);
+        
+        whh = Times(wh, dh);
+
+		wxxpbpwhh = Plus(wxxpb,whh)	
+				
+		G1 = RowSlice(0, cellDim, wxxpbpwhh)		
+		G2 = RowSlice(cellDim, cellDim, wxxpbpwhh)
+		G3 = RowSlice(cellDimX2, cellDim, wxxpbpwhh);
+		G4 = RowSlice(cellDimX3, cellDim, wxxpbpwhh);
+		
+        Wcidc = DiagTimes(Wci, dc);
+        it = Sigmoid (Plus ( G1, Wcidc));
+
+        bit = ElementTimes(it, Tanh( G2 ));
+
+        Wcfdc = DiagTimes(Wcf, dc);
+        ft = Sigmoid( Plus (G3, Wcfdc));
+
+        bft = ElementTimes(ft, dc);
+
+        ct = Plus(bft, bit);
+
+        Wcoct = DiagTimes(Wco, ct);
+        ot = Sigmoid( Plus( G4, Wcoct));
+
+        mt = ElementTimes(ot, Tanh(ct));
+
+        Wmr = Parameter(outputDim, cellDim, init=uniform, initValueScale=1);
+        output = Times(Wmr, mt); 
+    }
+
+    VLSTMP_opt(inputDim, outputDim, cellDim, inputx, dh, cellDimX2, cellDimX3, cellDimX4)
+    {
+        wx = Parameter(cellDimX4, inputDim, init=uniform, initValueScale=1);
+        wh = Parameter(cellDimX4, outputDim, init=uniform, initValueScale=1);
+        b = Parameter(cellDimX4, init=fixedValue, value=0.0);
+
+        Wci = Parameter(cellDim, init=uniform, initValueScale=1);
+        Wcf = Parameter(cellDim, init=uniform, initValueScale=1);
+        Wco = Parameter(cellDim, init=uniform, initValueScale=1);
+
+        wxx = Times(wx, inputx);
+        wxxpb = Plus(wxx, b);
+        whh = Times(wh, dh);
+		wxxpbpwhh = Plus(wxxpb,whh)	
+				
+		G1 = RowSlice(0, cellDim, wxxpbpwhh)		
+		G2 = RowSlice(cellDim, cellDim, wxxpbpwhh)
+		G3 = RowSlice(cellDimX2, cellDim, wxxpbpwhh);
+		G4 = RowSlice(cellDimX3, cellDim, wxxpbpwhh);
+		
+        Wpx = Parameter(cellDim, inputDim, init=uniform, initValueScale=1);
+        dc = Times(Wpx, inputx)
+
+        Wcidc = DiagTimes(Wci, dc);
+        it = Sigmoid(Plus(G1, Wcidc));
+        bit = ElementTimes(it, Tanh(G2));
+
+        Wcfdc = DiagTimes(Wcf, dc);
+        ft = Sigmoid(Plus(G3, Wcfdc));
+        bft = ElementTimes(ft, dc);
+
+        ct = Plus(bft, bit);
+
+        Wcoct = DiagTimes(Wco, ct);
+        ot = Sigmoid(Plus(G4, Wcoct));
+        mt = ElementTimes(ot, Tanh(ct));
+
+        Wmr = Parameter(outputDim, cellDim, init=uniform, initValueScale=1);
+        output = Times(Wmr, mt); 
+    }
+]
+
+ndlCreateNetwork_LSTMP_c1024_p256_x3=[
+
+	#define basic i/o
+	baseFeatDim=$baseFeatDim$
+    RowSliceStart=$RowSliceStart$ 
+    FeatDim=$featDim$
+	labelDim=$labelDim$
+    cellDim=1024
+	hiddenDim=512
+    cellDimX2=2048
+    cellDimX3=3072
+    cellDimX4=4096 
+
+	features=Input(FeatDim, tag=feature)
+	labels=Input(labelDim, tag=label)
+    feashift=RowSlice(RowSliceStart, baseFeatDim, features);      # shift 5 frames right (x_{t+5} -> x_{t} )
+
+	featNorm = MeanVarNorm(feashift)
+
+	# layer 1
+    LSTMoutput1 = LSTMPComponent(baseFeatDim, hiddenDim, cellDim, featNorm, cellDimX2, cellDimX3, cellDimX4);
+    VLSTMoutput1 = VLSTMP_opt(baseFeatDim, hiddenDim, cellDim, featNorm, LSTMoutput1, cellDimX2, cellDimX3, cellDimX4);
+
+    # layer 2 
+    LSTMoutput2 = LSTMPComponent(hiddenDim, hiddenDim, cellDim, VLSTMoutput1, cellDimX2, cellDimX3, cellDimX4);
+    VLSTMoutput2 = VLSTMP_LayerBelow_opt(hiddenDim, hiddenDim, cellDim, VLSTMoutput1, VLSTMoutput1.ct, LSTMoutput2, cellDimX2, cellDimX3, cellDimX4);
+
+    # layer 3 
+    LSTMoutput3 = LSTMPComponent(hiddenDim, hiddenDim, cellDim, VLSTMoutput2, cellDimX2, cellDimX3, cellDimX4);
+    VLSTMoutput3 = VLSTMP_LayerBelow_opt(hiddenDim, hiddenDim, cellDim, VLSTMoutput2, VLSTMoutput2.ct, LSTMoutput3, cellDimX2, cellDimX3, cellDimX4);
+
+    # layer 4 
+    LSTMoutput4 = LSTMPComponent(hiddenDim, hiddenDim, cellDim, VLSTMoutput3, cellDimX2, cellDimX3, cellDimX4);
+    VLSTMoutput4 = VLSTMP_LayerBelow_opt(hiddenDim, hiddenDim, cellDim, VLSTMoutput3, VLSTMoutput3.ct, LSTMoutput4, cellDimX2, cellDimX3, cellDimX4);
+
+    # layer 5 
+    LSTMoutput5 = LSTMPComponent(hiddenDim, hiddenDim, cellDim, VLSTMoutput4, cellDimX2, cellDimX3, cellDimX4);
+    VLSTMoutput5 = VLSTMP_LayerBelow_opt(hiddenDim, hiddenDim, cellDim, VLSTMoutput4, VLSTMoutput4.ct, LSTMoutput5, cellDimX2, cellDimX3, cellDimX4);
+
+
+	W = Parameter(labelDim, hiddenDim, init=uniform, initValueScale=1);
+	b = Parameter(labelDim, init=fixedvalue, value=0);
+	LSTMoutputW = Plus(Times(W, VLSTMoutput5), b);
+
+	
+    cr = CrossEntropyWithSoftmax(labels, LSTMoutputW,tag=Criteria);
+    Err = ErrorPrediction(labels,LSTMoutputW,tag=Eval);
+    
+    logPrior = LogPrior(labels)	 
+    ScaledLogLikelihood=Minus(LSTMoutputW,logPrior,tag=Output)
+
+]
+
